@@ -11,7 +11,7 @@ Add the extra translations into the already existing `tfdb.phrases.txt` file
 
 # Convars
 ```ini
-tfdb_NERrandomize "1" - Randomizes teams when NER respawns everyone
+tfdb_NERrandomize "1" - Randomizes teams (and balances) when NER respawns everyone
 tfdb_NERvotingTimeout "120" - Voting timeout for NER
 tfdb_ForceNER "0" - Forces NER mode (when possible), can't be disabled anymore
 tfdb_ForceNERstartMap "0" - Enables NER mode at the start of the map
