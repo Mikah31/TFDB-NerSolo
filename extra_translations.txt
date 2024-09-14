@@ -50,6 +50,11 @@
 		"en"		"[{olive}TFDB{default}] You will be respawned at the end of the round, as you have {darkmagenta}solo{default} {community}enabled{default}."
 	}
 
+	"Dodgeball_Solo_NER_Notify_Not_Respawned_Mid_round"
+	{
+		"en"		"[{olive}TFDB{default}] You will be respawned whenever one team loses all of its players, as you have {darkmagenta}solo{default} {community}enabled{default}."
+	}
+
 	"Dodgeball_Solo_Not_Possible_Last_Alive"
 	{
 		"en"		"[{olive}TFDB{default}] {darkmagenta}Solo{default} can {red}not{default} be enabled, as you are the last player alive."

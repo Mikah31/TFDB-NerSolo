@@ -10,7 +10,7 @@
 
 #define PLUGIN_NAME        "NER/SOLO Standalone plugin For Dodgeball"
 #define PLUGIN_AUTHOR      "Mikah"
-#define PLUGIN_VERSION     "1.4.0"
+#define PLUGIN_VERSION     "1.5.0"
 #define PLUGIN_URL         "-"
 
 public Plugin myinfo =
@@ -40,6 +40,7 @@ ArrayStack g_soloQueue;
 bool g_bSoloEnabled[MAXPLAYERS + 1];
 
 bool g_bRoundStarted;
+float g_fLastRespawned; // for invincibility
 int g_iLastDeadTeam = 2; // Red team
 
 ConVar g_Cvar_SeeBotsAsPlayers; // For testing NER with bots
@@ -49,7 +50,9 @@ ConVar g_Cvar_ForceNER;
 ConVar g_Cvar_ForceNERstartMap;
 ConVar g_Cvar_NERenabled;
 ConVar g_Cvar_SoloEnabled;
+ConVar g_Cvar_SoloPriority;
 ConVar g_Cvar_HornSound;
+ConVar g_Cvar_RespawnProtection;
 
 Address g_pMyWearables;
 
@@ -69,7 +72,9 @@ public void OnPluginStart()
 	g_Cvar_ForceNERstartMap = CreateConVar("tfdb_ForceNERstartMap", "0", "Enables NER mode at the start of the map", _, true, 0.0, true, 1.0);
 	g_Cvar_NERenabled = CreateConVar("tfdb_NERenabled", "1", "Enables/disables NER", _, true, 0.0, true, 1.0);
 	g_Cvar_SoloEnabled = CreateConVar("tfdb_SoloEnabled", "1", "Enables/disables Solo", _, true, 0.0, true, 1.0);
+	g_Cvar_SoloPriority = CreateConVar("tfdb_SoloPriority", "1", "Gives solo players priority before NER players", _, true, 0.0, true, 1.0);
 	g_Cvar_HornSound = CreateConVar("tfdb_HornSoundLevel", "0.5", "Volume level of the horn played when respawning players", _, true, 0.0, true, 1.0);
+	g_Cvar_RespawnProtection = CreateConVar("tfdb_RespawnProtection", "2.0", "Amount of time that a player is protected for after respawning", _, true, 0.0);
 	
 	g_Cvar_SeeBotsAsPlayers = CreateConVar("NER_BotDebug", "0", "Makes it so that NER plugin ignores bots & view them as players.", _, true, 0.0, true, 1.0);
 
@@ -82,7 +87,7 @@ public void OnConfigsExecuted()
 
 	if (g_Cvar_ForceNERstartMap.BoolValue)
 		g_bNERenabled = true;
-
+	
 	HookEvent("arena_round_start", OnSetupFinished, EventHookMode_PostNoCopy);
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_Pre);
 	HookEvent("teamplay_round_win", OnRoundEnd, EventHookMode_PostNoCopy);
@@ -90,6 +95,10 @@ public void OnConfigsExecuted()
 
 	HookConVarChange(g_Cvar_NERenabled, ConVarChanged);
 	HookConVarChange(g_Cvar_SoloEnabled, ConVarChanged);
+
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i))
+			SDKHook(i, SDKHook_OnTakeDamage, OnClientTakesDamage);
 
 	PrecacheSound(SOUND_NER_RESPAWNED, true);
 }
@@ -111,6 +120,9 @@ public void OnMapEnd()
 public void OnClientPutInServer(int iClient)
 {
 	g_bSoloEnabled[iClient] = false;
+
+	if (iClient > 0 && IsClientInGame(iClient))
+		SDKHook(iClient, SDKHook_OnTakeDamage, OnClientTakesDamage);
 }
 
 public void OnClientDisconnect(int iClient)
@@ -149,6 +161,7 @@ public void OnRoundEnd(Event hEvent, char[] strEventName, bool bDontBroadcast)
 public void OnSetupFinished(Event hEvent, char[] strEventName, bool bDontBroadcast)
 {
 	g_soloQueue.Clear();
+	g_fLastRespawned = 0.0;
 
 	g_iBot = GetBotClient();
 
@@ -161,7 +174,7 @@ public void OnSetupFinished(Event hEvent, char[] strEventName, bool bDontBroadca
 	{
 		if (!IsValidClient(iClient)) continue;
 		
-		if (g_bSoloEnabled[iClient] && !IsSpectator(iClient))
+		if (g_bSoloEnabled[iClient] && !IsSpectatorTeam(iClient))
 		{
 			// There are other players that are not solo'd (as of yet)
 			if ((GetClientTeam(iClient) == view_as<int>(TFTeam_Red) ? --iRedTeamCount : --iBlueTeamCount) > 0)
@@ -217,6 +230,29 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 		// Switch people's team until 1 player left if NER
 		if (g_bNERenabled && GetTeamAliveCount(AnalogueTeam(g_iLastDeadTeam)) > 1)
 		{
+			// Give solo players priority before switching alive players
+			if (g_Cvar_SoloPriority.BoolValue && !g_soloQueue.Empty)
+			{
+				int iSoloer = g_soloQueue.Pop();
+
+				// Handles people who don't have solo enabled anymore, but are still left in queue
+				while (!g_bSoloEnabled[iSoloer] && !g_soloQueue.Empty && IsSpectatorTeam(iSoloer))
+					iSoloer = g_soloQueue.Pop();
+
+				if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer))
+				{
+					// Respawn solo player
+					ChangeClientTeam(iSoloer, g_iLastDeadTeam);
+					TF2_RespawnPlayer(iSoloer);
+
+					g_fLastRespawned = GetGameTime();
+
+					EmitSoundToClient(iSoloer, SOUND_NER_RESPAWNED, _, _, _, _, g_Cvar_HornSound.FloatValue);
+
+					return;
+				}
+			}
+
 			int iRandomOpponent = GetTeamRandomAliveClient(AnalogueTeam(g_iLastDeadTeam));
 			g_iOldTeam[iRandomOpponent] = AnalogueTeam(g_iLastDeadTeam);
 		
@@ -224,20 +260,22 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 
 			return;
 		}
-		// If no one can be switched (or NER not enabled) respawn solo players
+		// If no one can be switched (or NER not enabled) respawn solo players (who didn't have priority)
 		else if (!g_soloQueue.Empty)
 		{
 			int iSoloer = g_soloQueue.Pop();
 
 			// Handles people who don't have solo enabled anymore, but are still left in queue
-			while (!g_bSoloEnabled[iSoloer] && !g_soloQueue.Empty && IsSpectator(iSoloer))
+			while (!g_bSoloEnabled[iSoloer] && !g_soloQueue.Empty && IsSpectatorTeam(iSoloer))
 				iSoloer = g_soloQueue.Pop();
 			
-			if (g_bSoloEnabled[iSoloer] && !IsSpectator(iSoloer))
+			if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer))
 			{
 				// Respawn solo player
 				ChangeClientTeam(iSoloer, g_iLastDeadTeam);
 				TF2_RespawnPlayer(iSoloer);
+
+				g_fLastRespawned = GetGameTime();
 
 				EmitSoundToClient(iSoloer, SOUND_NER_RESPAWNED, _, _, _, _, g_Cvar_HornSound.FloatValue);
 
@@ -264,7 +302,7 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 			// Add to list to be reshuffled & respawned			
 			for (int iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
 			{
-				if (!IsClientInGame(iPlayer) || IsSpectator(iPlayer))
+				if (!IsClientInGame(iPlayer) || IsSpectatorTeam(iPlayer))
 					continue;
 
 				int iLifeState = GetEntProp(iPlayer, Prop_Send, "m_lifeState");
@@ -313,7 +351,7 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 			// Keeping it in, as the issue is likely not resolved yet
 			for (int iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
 			{
-				if (!IsValidClient(iPlayer) || IsSpectator(iPlayer) || g_bSoloEnabled[iPlayer])
+				if (!IsValidClient(iPlayer) || IsSpectatorTeam(iPlayer) || g_bSoloEnabled[iPlayer])
 					continue;
 				
 				if (!IsPlayerAlive(iPlayer))
@@ -333,7 +371,7 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 			// message all solo players that they weren't respawned & push back to queue
 			for (int iPlayer = 1; iPlayer <= MaxClients; iPlayer++)
 			{
-				if (!IsClientInGame(iPlayer) || IsSpectator(iPlayer))
+				if (!IsClientInGame(iPlayer) || IsSpectatorTeam(iPlayer))
 					continue;
 
 				if (g_bSoloEnabled[iPlayer] && iPlayer != iWinner)
@@ -348,7 +386,11 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 						StrCat(buffer, sizeof(buffer), namebuffer);
 
 						g_soloQueue.Push(iPlayer);
-						CPrintToChat(iPlayer, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned");
+						
+						if (g_Cvar_SoloPriority.BoolValue)
+							CPrintToChat(iPlayer, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned_Mid_round");
+						else
+							CPrintToChat(iPlayer, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned");
 					}
 					else
 					{
@@ -373,7 +415,12 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 					StrCat(buffer, sizeof(buffer), namebuffer);
 
 					g_soloQueue.Push(iWinner);
-					CPrintToChat(iWinner, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned");
+
+					if (g_Cvar_SoloPriority.BoolValue)
+						CPrintToChat(iWinner, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned_Mid_round");
+					else
+						CPrintToChat(iWinner, "%t", "Dodgeball_Solo_NER_Notify_Not_Respawned");
+
 					ForcePlayerSuicide(iWinner);
 				}
 				// Can't solo, last in team
@@ -403,13 +450,25 @@ void RespawnPlayerCallback(any aData)
 {
 	if (aData)
 		TF2_RespawnPlayer(aData);
-		
+
+	g_fLastRespawned = GetGameTime();
+
 	// We only notify non-solo players of being respawned
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
 		if (!g_bSoloEnabled[iClient] && IsValidClient(iClient))
 			EmitSoundToClient(iClient, SOUND_NER_RESPAWNED, _, _, _, _, g_Cvar_HornSound.FloatValue);
 	}
+}
+
+public Action OnClientTakesDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3])
+{
+	if (GetGameTime() < g_fLastRespawned + g_Cvar_RespawnProtection.FloatValue && IsValidClient(victim))
+	{
+		damage = 0.0;
+		return Plugin_Changed;
+	}
+	return Plugin_Continue;
 }
 
 int GetTeamAliveCount(int iTeam)
@@ -619,7 +678,7 @@ bool IsValidClient(int iClient)
 	return false;
 }
 
-bool IsSpectator(int iClient)
+bool IsSpectatorTeam(int iClient)
 {	
 	return GetClientTeam(iClient) == view_as<int>(TFTeam_Spectator);
 }
