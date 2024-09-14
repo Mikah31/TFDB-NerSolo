@@ -16,5 +16,7 @@ tfdb_ForceNER "0" - Forces NER mode (when possible), can not be disabled anymore
 tfdb_ForceNERstartMap "0" - Enables NER mode at the start of the map
 tfdb_NERenabled "1" - Enables/disables NER
 tfdb_SoloEnabled "1" - Enables/disables Solo
+tfdb_SoloPriority "1" - Enables/disables priority for soloers being respawned before NER players are switched
 tfdb_HornSoundLevel "0.5" - Volume level of the horn played when respawning players
+tfdb_RespawnProtection "2.0" - Time after being respawned (by NER or solo) before damage can be taken
 ```
