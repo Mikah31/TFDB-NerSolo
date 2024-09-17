@@ -10,7 +10,7 @@
 
 #define PLUGIN_NAME        "NER/SOLO Standalone plugin For Dodgeball"
 #define PLUGIN_AUTHOR      "Mikah"
-#define PLUGIN_VERSION     "1.5.0"
+#define PLUGIN_VERSION     "1.5.1"
 #define PLUGIN_URL         "-"
 
 public Plugin myinfo =
@@ -236,10 +236,15 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 				int iSoloer = g_soloQueue.Pop();
 
 				// Handles people who don't have solo enabled anymore, but are still left in queue
-				while (!g_bSoloEnabled[iSoloer] && !g_soloQueue.Empty && IsSpectatorTeam(iSoloer))
-					iSoloer = g_soloQueue.Pop();
+				while (!g_soloQueue.Empty)
+				{
+					if (!g_bSoloEnabled[iSoloer] || IsSpectatorTeam(iSoloer) || IsPlayerAlive(iSoloer))
+						iSoloer = g_soloQueue.Pop();
+					else
+						break;
+				}
 
-				if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer))
+				if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer) && !IsPlayerAlive(iSoloer))
 				{
 					// Respawn solo player
 					ChangeClientTeam(iSoloer, g_iLastDeadTeam);
@@ -266,10 +271,15 @@ public void OnPlayerDeath(Event hEvent, char[] strEventName, bool bDontBroadcast
 			int iSoloer = g_soloQueue.Pop();
 
 			// Handles people who don't have solo enabled anymore, but are still left in queue
-			while (!g_bSoloEnabled[iSoloer] && !g_soloQueue.Empty && IsSpectatorTeam(iSoloer))
-				iSoloer = g_soloQueue.Pop();
+			while (!g_soloQueue.Empty)
+			{
+				if (!g_bSoloEnabled[iSoloer] || IsSpectatorTeam(iSoloer) || IsPlayerAlive(iSoloer))
+					iSoloer = g_soloQueue.Pop();
+				else
+					break;
+			}
 			
-			if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer))
+			if (g_bSoloEnabled[iSoloer] && !IsSpectatorTeam(iSoloer) && !IsPlayerAlive(iSoloer))
 			{
 				// Respawn solo player
 				ChangeClientTeam(iSoloer, g_iLastDeadTeam);
