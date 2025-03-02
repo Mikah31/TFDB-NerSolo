@@ -25,11 +25,6 @@
 		"en"		"[{olive}TFDB{default}] {darkmagenta}NER{default} is now {red}disabled{default}."
 	}
 
-	"Dodgeball_NER_Disabled_By_New_Config"
-	{
-		"en"		"[{olive}TFDB{default}] {darkmagenta}NER{default} has been {red}disabled{default} by new config."
-	}
-
 	"Dodgeball_NER_Not_Enough_Players_Disabled"
 	{
 		"en"		"[{olive}TFDB{default}] {darkmagenta}NER{default} is now {red}disabled{default} due to not enough players."
@@ -81,3 +76,20 @@
 		"#format"	"{1:s}"
 		"en"		"[{olive}TFDB{default}] {darkmagenta}Soloers{default}: {darkorange}{1}{default}"
 	}
+	
+	"Solo_Not_Allowed"
+	{
+		"en"		"[{olive}TFDB{default}] {darkmagenta}Solo{default} is currently {red}disabled{default}."
+	}
+	
+	"NER_Not_Allowed"
+	{
+		"en"		"[{olive}TFDB{default}] {darkmagenta}NER{default} is currently {red}disabled{default}."
+	}
+	
+	"Dodgeball_Vote_Conflict"
+	{
+		"en"		"[{olive}TFDB{default}] There is currently another vote in progress."
+	}
+
+	

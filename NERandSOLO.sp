@@ -10,7 +10,7 @@
 
 #define PLUGIN_NAME        "NER/SOLO Standalone plugin For Dodgeball"
 #define PLUGIN_AUTHOR      "Mikah"
-#define PLUGIN_VERSION     "1.5.1"
+#define PLUGIN_VERSION     "1.5.2"
 #define PLUGIN_URL         "-"
 
 public Plugin myinfo =
@@ -136,7 +136,7 @@ public void ConVarChanged(ConVar hConVar, const char[] strOldValue, const char[]
 	if (!g_Cvar_NERenabled.BoolValue)
 	{
 		g_bNERenabled = false;
-		CPrintToChatAll("%t", "NER_Disabled");
+		CPrintToChatAll("%t", "Dodgeball_NER_Disabled");
 	}
 
 	if (!g_Cvar_SoloEnabled.BoolValue)
