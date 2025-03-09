@@ -10,7 +10,7 @@
 
 #define PLUGIN_NAME        "NER/SOLO Standalone plugin For Dodgeball"
 #define PLUGIN_AUTHOR      "Mikah"
-#define PLUGIN_VERSION     "1.5.2"
+#define PLUGIN_VERSION     "1.5.3"
 #define PLUGIN_URL         "-"
 
 public Plugin myinfo =
@@ -690,7 +690,7 @@ bool IsValidClient(int iClient)
 
 bool IsSpectatorTeam(int iClient)
 {	
-	return GetClientTeam(iClient) == view_as<int>(TFTeam_Spectator);
+	return GetClientTeam(iClient) == view_as<int>(TFTeam_Spectator) || GetClientTeam(iClient) == view_as<int>(TFTeam_Unassigned);
 }
 
 void ChangeAliveClientTeam(int iClient, int iTeam)
